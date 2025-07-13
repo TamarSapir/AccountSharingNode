@@ -1,14 +1,20 @@
-// routes/scan.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
 
-const upload = multer({ dest: 'uploads/' });
+const uploadDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const upload = multer({ dest: uploadDir });
 
 router.post('/scan-receipt', upload.single('image'), async (req, res) => {
+  console.log("Received file:", req.file);
   if (!req.file) {
     return res.status(400).json({ error: 'No image uploaded' });
   }
@@ -19,17 +25,17 @@ router.post('/scan-receipt', upload.single('image'), async (req, res) => {
 
     const response = await axios.post('https://api.api-ninjas.com/v1/imagetotext', form, {
       headers: {
-        'X-Api-Key': 'YOUR_API_KEY_HERE',
+        'X-Api-Key': '2rqKmKZfOihs863X+zoLHQ==gl1pnJH4omROsJmT',
         ...form.getHeaders(),
       },
     });
 
-    const textItems = response.data.map((item) => item.text);
+    const textItems = response.data.map((item) => item.text).filter(Boolean);
     res.json({ items: textItems });
 
-    fs.unlinkSync(req.file.path); //clean file
+    fs.unlinkSync(req.file.path); // delete temp file
   } catch (error) {
-    console.error('OCR error:', error);
+    console.error('OCR error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to extract text' });
   }
 });

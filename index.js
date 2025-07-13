@@ -3,16 +3,17 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const admin = require('firebase-admin');
+const ip = require('ip');
+
 const app = express();
 
-// Do this FIRST
+// Firebase Admin Initialization
 const serviceAccount = require('./firebase-service-account.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// Do this only AFTER initializeApp()
 admin.auth().listUsers(1)
   .then((result) => {
     console.log("Firebase Admin connected.");
@@ -22,11 +23,11 @@ admin.auth().listUsers(1)
     console.error("Firebase Admin error:", error.message);
   });
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB
+// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB error:', err));
@@ -39,6 +40,6 @@ app.use('/', scanRoutes);
 
 // Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running at http://${ip.address()}:${PORT}`);
 });

@@ -65,10 +65,10 @@ router.get('/user-profile', verifyFirebaseToken, async (req, res) => {
 });
 
 
-// בדיקת חיבור ל-Firebase Admin דרך אימות משתמש
+// firebase
 router.get('/test-firebase-connection', async (req, res) => {
   try {
-    const listUsers = await admin.auth().listUsers(1); // בקשה פשוטה
+    const listUsers = await admin.auth().listUsers(1); 
     res.status(200).json({ message: 'Firebase Admin is connected ✅', sampleUser: listUsers.users[0]?.email });
   } catch (err) {
     console.error('Firebase Admin connection error:', err.message);
