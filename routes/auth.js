@@ -2,6 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const verifyFirebaseToken = require('../middleware/authMiddleware');
+const admin = require('firebase-admin');
 
 // Register route
 router.post('/register', async (req, res) => {
@@ -12,16 +14,21 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
+    // create in fire base
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: username,
+    });
 
+    // create in mongodb
     const newUser = new User({ username, email, password });
     await newUser.save();
-    res.status(201).json({ message: 'User registered', username: newUser.username, email: newUser.email });
+
+    res.status(201).json({ message: 'User registered', uid: userRecord.uid });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Registration error:', err.message);
+    res.status(500).json({ error: err.message || 'Registration failed' });
   }
 });
 
@@ -38,6 +45,34 @@ router.post('/login', async (req, res) => {
     res.json({ message: 'Login successful', username: user.username, email: user.email });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get user profile from Firebase
+router.get('/user-profile', verifyFirebaseToken, async (req, res) => {
+  try {
+    const user = await admin.auth().getUser(req.user.uid);
+    res.json({
+      uid: user.uid,
+      email: user.email,
+      name: user.displayName || '',
+      phone: user.phoneNumber || ''
+    });
+  } catch (error) {
+    console.error('Error fetching user data:', error.message);
+    res.status(500).json({ error: 'Error fetching user data' });
+  }
+});
+
+
+// בדיקת חיבור ל-Firebase Admin דרך אימות משתמש
+router.get('/test-firebase-connection', async (req, res) => {
+  try {
+    const listUsers = await admin.auth().listUsers(1); // בקשה פשוטה
+    res.status(200).json({ message: 'Firebase Admin is connected ✅', sampleUser: listUsers.users[0]?.email });
+  } catch (err) {
+    console.error('Firebase Admin connection error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -27,7 +27,7 @@ router.post('/scan-receipt', upload.single('image'), async (req, res) => {
     const textItems = response.data.map((item) => item.text);
     res.json({ items: textItems });
 
-    fs.unlinkSync(req.file.path); // ניקוי קובץ זמני
+    fs.unlinkSync(req.file.path); //clean file
   } catch (error) {
     console.error('OCR error:', error);
     res.status(500).json({ error: 'Failed to extract text' });
