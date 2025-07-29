@@ -23,14 +23,21 @@ router.post('/scan-receipt', upload.single('image'), async (req, res) => {
     const form = new FormData();
     form.append('image', fs.createReadStream(req.file.path));
 
-    const response = await axios.post('https://api.api-ninjas.com/v1/imagetotext', form, {
+    // const response = await axios.post('https://api.api-ninjas.com/v1/imagetotext', form, {
+    //   headers: {
+    //     'X-Api-Key': '2rqKmKZfOihs863X+zoLHQ==gl1pnJH4omROsJmT',
+    //     ...form.getHeaders(),
+    //   },
+    // });
+
+    
+    const response = await axios.post('http://localhost:5100/scan-receipt', form, {
       headers: {
-        'X-Api-Key': '2rqKmKZfOihs863X+zoLHQ==gl1pnJH4omROsJmT',
         ...form.getHeaders(),
       },
     });
 
-    const textItems = response.data.map((item) => item.text).filter(Boolean);
+    const textItems = response.data.items || [];
     res.json({ items: textItems });
 
     fs.unlinkSync(req.file.path); // delete temp file
