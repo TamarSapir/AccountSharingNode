@@ -2,26 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const admin = require('firebase-admin');
-
 
 const app = express();
-
-// Firebase Admin Initialization
-//const serviceAccount = require('./firebase-service-account.json');
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-// });
-
-// admin.auth().listUsers(1)
-//   .then((result) => {
-//     console.log("Firebase Admin connected.");
-//     console.log("First user:", result.users[0]?.email || "No users found.");
-//   })
-//   .catch((error) => {
-//     console.error("Firebase Admin error:", error.message);
-//   });
 
 // Middleware
 app.use(cors());

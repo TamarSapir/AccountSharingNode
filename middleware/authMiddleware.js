@@ -1,6 +1,7 @@
-const admin = require('firebase-admin');
+// middleware/authMiddleware.js
+const jwt = require('jsonwebtoken');
 
-const verifyFirebaseToken = async (req, res, next) => {
+const verifyJwtToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -10,13 +11,13 @@ const verifyFirebaseToken = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken; // user data
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // Access userId, email
     next();
   } catch (error) {
-    console.error('Token verification error:', error.message);
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('JWT verification error:', error.message);
+    res.status(403).json({ error: 'Invalid or expired token' });
   }
 };
 
-module.exports = verifyFirebaseToken;
+module.exports = verifyJwtToken;
