@@ -17,6 +17,8 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 const authRoutes = require('./routes/auth');
 const scanRoutes = require('./routes/scan');
+const billRoutes = require('./routes/bill');
+app.use('/', billRoutes);
 app.use('/', authRoutes);
 app.use('/', scanRoutes);
 
