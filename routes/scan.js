@@ -24,19 +24,21 @@ router.post('/scan-receipt', verifyJwt, upload.single('image'), async (req, res)
   }
 
   const sessionId = uuidv4();
+  console.log("Generated sessionId:", sessionId);
 
   try {
     const form = new FormData();
     form.append('image', fs.createReadStream(req.file.path));
 
-   const response = await axios.post('http://localhost:5100/scan-receipt', form, {
-  headers: {
-    ...form.getHeaders(),
-    Authorization: req.headers['authorization']  
-  }
-});
+    const response = await axios.post('http://localhost:5100/scan-receipt', form, {
+      headers: {
+        ...form.getHeaders(),
+        Authorization: req.headers['authorization']  
+      }
+    });
 
     const textItems = response.data.items || [];
+    console.log("Extracted items:", textItems);
 
     const docs = textItems.map(item => ({
       sessionId,
@@ -45,16 +47,18 @@ router.post('/scan-receipt', verifyJwt, upload.single('image'), async (req, res)
       quantity: item.quantity,
       price: item.price
     }));
-    await Item.insertMany(docs);
 
+    await Item.insertMany(docs);
     fs.unlinkSync(req.file.path);
 
-    res.json({ items: textItems, sessionId }); //send to front
+    console.log("Sending response to frontend with sessionId:", sessionId);
+    res.json({ items: textItems, sessionId }); 
   } catch (error) {
     console.error('OCR error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to extract text' });
   }
 });
+
 
 
 router.post('/save-items', verifyJwt, async (req, res) => {

@@ -3,6 +3,7 @@ const router = express.Router();
 const Bill = require('../models/Bill');
 const User = require('../models/User');
 const verifyJwt = require('../middleware/authMiddleware');
+const sendBillShareEmail = require('../utils/sendEmail');
 
 // create new account
 router.post('/create-bill', verifyJwt, async (req, res) => {
@@ -44,11 +45,22 @@ router.post('/bills/:id/share', verifyJwt, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
+    // save users that share
     bill.sharedWithUsers = Array.from(new Set([...bill.sharedWithUsers, ...userIds]));
     await bill.save();
 
-    res.json({ message: 'Bill shared successfully' });
+    // get userIds
+    const usersToNotify = await User.find({ _id: { $in: userIds } });
+
+    // send mail to user that we share with
+    for (const user of usersToNotify) {
+      const billLink = `http://localhost:5173/bill/${bill.sessionId}`;
+      await sendBillShareEmail(user.email, billLink);
+    }
+
+    res.json({ message: 'Bill shared and emails sent successfully' });
   } catch (err) {
+    console.error('Error sharing bill:', err);
     res.status(500).json({ error: 'Failed to share bill' });
   }
 });
@@ -80,7 +92,7 @@ router.get('/bills/:sessionId', verifyJwt, async (req, res) => {
     const bill = await Bill.findOne({ sessionId });
 
     if (!bill) {
-      console.warn("❌ Bill not found for session:", sessionId);
+      console.warn("Bill not found for session:", sessionId);
       return res.status(404).json({ error: 'Bill not found' });
     }
 
@@ -88,19 +100,19 @@ router.get('/bills/:sessionId', verifyJwt, async (req, res) => {
     const isOwner = bill.ownerId.toString() === userId;
     const isShared = bill.sharedWithUsers.map(id => id.toString()).includes(userId);
 
-    console.log("🔍 Checking access for user:", userId);
-    console.log("📄 Bill owner:", bill.ownerId.toString());
-    console.log("👥 Shared with:", bill.sharedWithUsers.map(id => id.toString()));
+    console.log("Checking access for user:", userId);
+    console.log("Bill owner:", bill.ownerId.toString());
+    console.log("Shared with:", bill.sharedWithUsers.map(id => id.toString()));
 
     if (!isOwner && !isShared) {
-      console.warn("🚫 Access denied to bill", sessionId, "for user", userId);
+      console.warn("Access denied to bill", sessionId, "for user", userId);
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    console.log("✅ Access granted to bill", sessionId, "for user", userId);
+    console.log("Access granted to bill", sessionId, "for user", userId);
     res.json(bill);
   } catch (err) {
-    console.error("❗ Failed to fetch bill:", err);
+    console.error("Failed to fetch bill:", err);
     res.status(500).json({ error: 'Server error' });
   }
 });
