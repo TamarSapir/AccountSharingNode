@@ -18,6 +18,8 @@ mongoose.connect(process.env.MONGO_URI)
 const authRoutes = require('./routes/auth');
 const scanRoutes = require('./routes/scan');
 const billRoutes = require('./routes/bill');
+const emailRoutes = require('./routes/email');
+app.use('/', emailRoutes);
 app.use('/', billRoutes);
 app.use('/', authRoutes);
 app.use('/', scanRoutes);
