@@ -1,21 +1,16 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-const INSECURE_TLS = process.env.EMAIL_INSECURE_TLS === 'true';
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,            // SSL
-  secure: true,         // TLS 
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,   
-    pass: process.env.EMAIL_PASS    
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
-  tls: {
-    servername: 'smtp.gmail.com',
-    //debug
-    rejectUnauthorized: !INSECURE_TLS
-  }
+    tls: {
+    rejectUnauthorized: false,
+  }
 });
 
 async function sendBillShareEmail(to, billLink) {
