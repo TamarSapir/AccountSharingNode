@@ -2,9 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Bill = require('../models/Bill');
 const User = require('../models/User');
+const Item = require('../models/item');
 const verifyJwt = require('../middleware/authMiddleware');
 const sendBillShareEmail = require('../utils/sendEmail');
 const mongoose = require('mongoose');
+
+//helper function for checking accsess
+async function loadBillAndCheckAccess(sessionId, userId) {
+  const bill = await Bill.findOne({ sessionId });
+  if (!bill) return { status: 404, error: 'Bill not found' };
+
+  const isOwner  = bill.ownerId.toString() === userId;
+  const isShared = bill.sharedWithUsers.map(id => id.toString()).includes(userId);
+  if (!isOwner && !isShared) return { status: 403, error: 'Access denied' };
+
+  return { status: 200, bill };
+}
 
 // create new account
 router.post('/create-bill', verifyJwt, async (req, res) => {
@@ -90,7 +103,7 @@ router.post('/bills/:id/share', verifyJwt, async (req, res) => {
       const billLink = `${base}/bill/${bill.sessionId}`;
       await sendBillShareEmail(user.email, billLink);
     }
-    
+
     res.json({ message: 'Bill shared and emails sent successfully' });
   } catch (err) {
     console.error('Error sharing bill:', err);
@@ -117,7 +130,7 @@ router.get('/users/search', verifyJwt, async (req, res) => {
   }
 });
 
-//just freinds can see the bill
+//just frindes can see the bill
 router.get('/bills/:sessionId', verifyJwt, async (req, res) => {
   const { sessionId } = req.params;
 
@@ -151,5 +164,21 @@ router.get('/bills/:sessionId', verifyJwt, async (req, res) => {
 });
 
 
+//get the items of the recipe when you get a invitation for a sharing bill
+router.get('/bills/:sessionId/items', verifyJwt, async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const { status, error, bill } = await loadBillAndCheckAccess(sessionId, req.user.userId);
+    if (status !== 200) return res.status(status).json({ error });
 
+    const items = await Item.find({ sessionId })
+      .select('_id name quantity price') //show the instrsting things for the user
+      .lean();
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('Failed to fetch bill items:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 module.exports = router;
