@@ -81,27 +81,32 @@ router.post('/bills/:id/share', verifyJwt, async (req, res) => {
     const bill = await Bill.findById(billId);
     if (!bill) return res.status(404).json({ error: 'Bill not found' });
 
-    if (bill.ownerId.toString() !== req.user.userId) {
+    const requester = req.user.userId;
+    const isOwner  = bill.ownerId.toString() === requester;
+    const isShared = bill.sharedWithUsers.map(id => id.toString()).includes(requester);
+
+    //just owners and shared users can see
+    if (!isOwner && !isShared) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // save users that share
-     const merged = [
-      ...bill.sharedWithUsers.map(id => id.toString()),
-      ...userIds.map(id => id.toString())
-    ];
-    const unique = [...new Set(merged)].map(id => new mongoose.Types.ObjectId(id));
-    bill.sharedWithUsers = unique;
+   // share to users
+    const current = bill.sharedWithUsers.map(id => id.toString());
+    const incoming = userIds.map(String);
+    const merged = [...new Set([...current, ...incoming])]
+      .filter(id => id !== requester && id !== bill.ownerId.toString())
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    bill.sharedWithUsers = merged;
     await bill.save();
 
-    // get userIds
-    const usersToNotify = await User.find({ _id: { $in: userIds } });
+     // send emails
+    const usersToNotify = await User.find({ _id: { $in: merged } });
+    const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const billLink = `${base}/bill/${bill.sessionId}`;
 
-    // send mail to user that we share with
-     for (const user of usersToNotify) {
-      const base = process.env.FRONTEND_URL || 'http://localhost:5173';
-      const billLink = `${base}/bill/${bill.sessionId}`;
-      await sendBillShareEmail(user.email, billLink);
+    for (const u of usersToNotify) {
+      await sendBillShareEmail(u.email, billLink);
     }
 
     res.json({ message: 'Bill shared and emails sent successfully' });
