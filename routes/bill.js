@@ -4,6 +4,7 @@ const Bill = require('../models/Bill');
 const User = require('../models/User');
 const verifyJwt = require('../middleware/authMiddleware');
 const sendBillShareEmail = require('../utils/sendEmail');
+const mongoose = require('mongoose');
 
 // create new account
 router.post('/create-bill', verifyJwt, async (req, res) => {
@@ -31,21 +32,19 @@ router.post('/create-bill', verifyJwt, async (req, res) => {
     );
 
     //decide create new or use exist
-    let billId;
-    if (result.upsertedCount === 1 && result.upsertedId) {
-      billId = result.upsertedId._id || result.upsertedId; //depend
+     if (result.upsertedId) {
+      const billId = result.upsertedId._id || result.upsertedId;
       return res.status(201).json({ billId });
     }
 
-    //check if exist
+    // if already exist
     const existing = await Bill.findOne({ sessionId }, { _id: 1 }).lean();
-    if (!existing) {
-      //check rare cases
-      const created = await Bill.create(setOnInsert);
-      return res.status(201).json({ billId: created._id });
-    }
+    if (existing) return res.status(200).json({ billId: existing._id });
 
-    return res.status(200).json({ billId: existing._id });
+    // not created and not found
+    const created = await Bill.create(setOnInsert);
+    return res.status(201).json({ billId: created._id });
+
   } catch (err) {
     console.error('Error in create-bill:', err);
 
@@ -62,7 +61,7 @@ router.post('/create-bill', verifyJwt, async (req, res) => {
 
 // share with other users
 router.post('/bills/:id/share', verifyJwt, async (req, res) => {
-  const { userIds } = req.body;
+  const { userIds = [] } = req.body;
   const billId = req.params.id;
 
   try {
@@ -74,18 +73,24 @@ router.post('/bills/:id/share', verifyJwt, async (req, res) => {
     }
 
     // save users that share
-    bill.sharedWithUsers = Array.from(new Set([...bill.sharedWithUsers, ...userIds]));
+     const merged = [
+      ...bill.sharedWithUsers.map(id => id.toString()),
+      ...userIds.map(id => id.toString())
+    ];
+    const unique = [...new Set(merged)].map(id => new mongoose.Types.ObjectId(id));
+    bill.sharedWithUsers = unique;
     await bill.save();
 
     // get userIds
     const usersToNotify = await User.find({ _id: { $in: userIds } });
 
     // send mail to user that we share with
-    for (const user of usersToNotify) {
-      const billLink = `http://localhost:5173/bill/${bill.sessionId}`;
+     for (const user of usersToNotify) {
+      const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const billLink = `${base}/bill/${bill.sessionId}`;
       await sendBillShareEmail(user.email, billLink);
     }
-
+    
     res.json({ message: 'Bill shared and emails sent successfully' });
   } catch (err) {
     console.error('Error sharing bill:', err);
