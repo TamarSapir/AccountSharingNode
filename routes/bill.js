@@ -14,20 +14,48 @@ router.post('/create-bill', verifyJwt, async (req, res) => {
   }
 
   try {
-    const newBill = new Bill({
+    //if not exist try insert
+    const setOnInsert = {
       ownerId: req.user.userId,
       sessionId,
       participants: [],
-      sharedWithUsers: []
-    });
+      sharedWithUsers: [],
+      createdAt: new Date(),
+    };
 
-    await newBill.save();
-    res.status(201).json({ billId: newBill._id });
+    //avoid doubles
+    const result = await Bill.updateOne(
+      { sessionId },
+      { $setOnInsert: setOnInsert },
+      { upsert: true }
+    );
+
+    //decide create new or use exist
+    let billId;
+    if (result.upsertedCount === 1 && result.upsertedId) {
+      billId = result.upsertedId._id || result.upsertedId; //depend
+      return res.status(201).json({ billId });
+    }
+
+    //check if exist
+    const existing = await Bill.findOne({ sessionId }, { _id: 1 }).lean();
+    if (!existing) {
+      //check rare cases
+      const created = await Bill.create(setOnInsert);
+      return res.status(201).json({ billId: created._id });
+    }
+
+    return res.status(200).json({ billId: existing._id });
   } catch (err) {
     console.error('Error in create-bill:', err);
-    if (err.code === 11000) {
+
+    // return the exist one
+    if (err?.code === 11000) {
+      const existing = await Bill.findOne({ sessionId }, { _id: 1 }).lean();
+      if (existing) return res.status(200).json({ billId: existing._id });
       return res.status(409).json({ error: 'sessionId already exists' });
     }
+
     res.status(500).json({ error: 'Failed to create bill' });
   }
 });

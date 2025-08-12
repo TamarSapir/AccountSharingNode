@@ -1,22 +1,26 @@
-// middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 
 const verifyJwtToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization || "";
+  const m = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!m) return res.status(401).json({ error: 'No token provided' });
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+  let token = m[1].trim();
+  if ((token.startsWith('"') && token.endsWith('"')) || (token.startsWith("'") && token.endsWith("'"))) {
+    token = token.slice(1, -1); // clean ""
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Access userId, email
+    //use id all over the code
+    const userId = decoded.sub || decoded.id || decoded.userId;
+    if (!userId) return res.status(401).json({ error: 'Token payload missing user id' });
+
+    req.user = { userId, ...decoded };
     next();
   } catch (error) {
     console.error('JWT verification error:', error.message);
-    res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: 'Invalid or expired token' }); 
   }
 };
 
