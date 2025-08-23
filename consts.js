@@ -1,0 +1,13 @@
+require('dotenv').config()
+
+const IMAGE_TO_TEXT_SERVICE_URL = process.env.IMAGE_TO_TEXT_SERVICE_URL
+const USE_MOCK_IMAGE_SERVICE = process.env.USE_MOCK_IMAGE_SERVICE === 'true'
+const JOIN_LINK_EXPIRATION = process.env.JOIN_LINK_EXPIRATION || "2m"
+const INVITE_SECRET = process.env.INVITE_SECRET
+
+module.exports = {
+    IMAGE_TO_TEXT_SERVICE_URL,
+    USE_MOCK_IMAGE_SERVICE,
+    JOIN_LINK_EXPIRATION,
+    INVITE_SECRET,
+}

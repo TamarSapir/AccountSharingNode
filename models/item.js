@@ -6,7 +6,10 @@ const ItemSchema = new mongoose.Schema(
     userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name:      { type: String, required: true, trim: true },
     quantity:  { type: Number, required: true, default: 1, min: 1 },
+    totalQuantity:  { type: Number, required: true, default: 1, min: 1 },
     price:     { type: Number, required: true, min: 0 },
+    lockedBy:  { userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, status: Boolean, date: Date},
+    paidBy: [{userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, quantity: { type: Number, min: 0 }}],
     date:      { type: Date, default: Date.now },
   },
   { timestamps: true }

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User')
 
-const verifyJwtToken = (req, res, next) => {
+const verifyJwtToken = async (req, res, next) => {
   const authHeader = req.headers.authorization || "";
   const m = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!m) return res.status(401).json({ error: 'No token provided' });
@@ -16,7 +17,10 @@ const verifyJwtToken = (req, res, next) => {
     const userId = decoded.sub || decoded.id || decoded.userId;
     if (!userId) return res.status(401).json({ error: 'Token payload missing user id' });
 
-    req.user = { userId, ...decoded };
+    const user = await User.findOne({_id: userId}, { username: 1, email: 1}).lean()
+    if(!user) return res.status(401).json({ error: 'User doesnt exist' });
+
+    req.user = { userId, ...user };
     next();
   } catch (error) {
     console.error('JWT verification error:', error.message);
